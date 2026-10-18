@@ -9,7 +9,24 @@ INCLUDE "hardware.inc"
 SECTION "Header", ROM0[$100]
 	jp EntryPoint
 
-	ds $150 - @, 0
+	; The cartridge header, at fixed offsets so nothing overlaps. rgbfix fills
+	; in the checksums; the title is ours so the player and the page can name
+	; the cartridge.
+	ds $134 - @, 0         ; padding up to the title
+
+	db "GBDEMO"            ; 0x134: title
+	ds $143 - @, 0         ; pad the rest of the title area
+	db 0                   ; 0x143: CGB flag, DMG only
+	db 0, 0                ; 0x144: new licensee
+	db 0                   ; 0x146: SGB flag
+	db 0                   ; 0x147: cartridge type, ROM only
+	db 0                   ; 0x148: ROM size, 32 KiB
+	db 0                   ; 0x149: RAM size, none
+	db 1                   ; 0x14A: destination, non-Japanese
+	db 0                   ; 0x14B: old licensee
+	db 0                   ; 0x14C: version
+	db 0                   ; 0x14D: header checksum, filled by rgbfix
+	db 0, 0                ; 0x14E: global checksum, filled by rgbfix
 
 SECTION "Entry", ROM0[$150]
 EntryPoint:

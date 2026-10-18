@@ -35,6 +35,9 @@ jobs:
       - name: Check the wasm core matches the native core
         run: node test/wasm.js
 
+      - name: Check the demo cartridge runs and responds to input
+        run: node test/demo.js
+
   deploy:
     needs: test
     if: github.ref == 'refs/heads/master'
