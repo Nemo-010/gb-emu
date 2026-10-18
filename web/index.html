@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Boy</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0f14;
+    --panel: #131a22;
+    --line: #22303c;
+    --ink: #e8eef5;
+    --dim: #7d8b99;
+    --accent: #9bbc0f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 900px; margin: 0 auto; padding: 28px 20px 56px; }
+  h1 { font-size: 22px; margin: 0 0 2px; letter-spacing: -0.01em; }
+  p.lede { color: var(--dim); margin: 0 0 22px; font-size: 14px; }
+
+  .shell { display: grid; grid-template-columns: 1fr 260px; gap: 18px; }
+  @media (max-width: 720px) { .shell { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .card h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--dim); margin: 0 0 10px; font-weight: 600;
+  }
+
+  #screen {
+    display: block;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    image-rendering: pixelated;
+    border-radius: 6px;
+    background: #9bbc0f;
+    border: 1px solid var(--line);
+  }
+
+  .pad { margin-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .dpad, .ab { display: grid; gap: 4px; }
+  .dpad { grid-template-columns: repeat(3, 34px); grid-template-rows: repeat(3, 30px); }
+  .ab { grid-template-columns: repeat(2, 40px); }
+
+  button {
+    font: inherit; color: var(--ink); background: #1d2833;
+    border: 1px solid var(--line); border-radius: 6px;
+    cursor: pointer; user-select: none; touch-action: none;
+  }
+  button:active, button.held { background: #2b3a49; border-color: #3d5163; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  .dpad button { width: 34px; height: 30px; font-size: 13px; }
+  .ab button { width: 40px; height: 40px; border-radius: 50%; font-weight: 600; }
+  .mid { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .mid button { width: 54px; height: 20px; font-size: 10px; letter-spacing: 0.06em; }
+
+  .stat { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+  .stat span:first-child { color: var(--dim); }
+  .stat span:last-child { font-variant-numeric: tabular-nums; }
+  .stat.good span:last-child { color: var(--accent); }
+
+  .primary {
+    width: 100%; margin-top: 10px; padding: 9px; font-weight: 600;
+    background: #1f6feb; border-color: #1f6feb;
+  }
+  .primary:hover:not(:disabled) { background: #388bfd; }
+  .ghost { width: 100%; margin-top: 6px; padding: 7px; font-size: 13px; }
+
+  .drop {
+    border: 1px dashed var(--line); border-radius: 8px; padding: 14px;
+    text-align: center; color: var(--dim); font-size: 13px; margin-top: 10px;
+  }
+  .drop.over { border-color: var(--accent); color: var(--accent); }
+
+  #status { font-size: 13px; color: var(--dim); min-height: 2.6em; margin-top: 10px; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 0.9em; }
+  .note { color: var(--dim); font-size: 12px; margin: 8px 0 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Game Boy</h1>
+  <p class="lede">
+    A DMG emulator: SM83 CPU, PPU with sprite priority and the window layer,
+    MBC1/2/3/5 cartridges. Compiled to WebAssembly.
+  </p>
+
+  <div class="shell">
+    <div>
+      <div class="card">
+        <h2>Screen</h2>
+        <canvas id="screen" width="160" height="144"></canvas>
+
+        <div class="pad">
+          <div class="dpad">
+            <span></span><button data-btn="up">▲</button><span></span>
+            <button data-btn="left">◀</button><span></span><button data-btn="right">▶</button>
+            <span></span><button data-btn="down">▼</button><span></span>
+          </div>
+          <div class="mid">
+            <button data-btn="select">SELECT</button>
+            <button data-btn="start">START</button>
+          </div>
+          <div class="ab">
+            <button data-btn="b">B</button>
+            <button data-btn="a">A</button>
+          </div>
+        </div>
+        <p class="note">
+          Keyboard: arrows, <code>Z</code> = A, <code>X</code> = B,
+          <code>Enter</code> = Start, <code>Shift</code> = Select.
+        </p>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Cartridge</h2>
+        <div class="stat"><span>Title</span><span id="s-title">—</span></div>
+        <div class="stat"><span>Mapper</span><span id="s-mapper">—</span></div>
+        <div class="stat"><span>ROM banks</span><span id="s-banks">—</span></div>
+        <div class="stat" id="s-run"><span>Running</span><span>no</span></div>
+        <div class="stat"><span>FPS</span><span id="s-fps">—</span></div>
+        <div class="stat good" id="s-bad"><span>Bad opcodes</span><span>0</span></div>
+
+        <label class="primary" style="display:block;text-align:center;padding:9px;border-radius:6px;cursor:pointer">
+          Load a ROM
+          <input id="file" type="file" accept=".gb,.gbc" hidden>
+        </label>
+        <button class="ghost" id="pause" disabled>Pause</button>
+        <button class="ghost" id="reset" disabled>Reset</button>
+
+        <div class="drop" id="drop">or drop a .gb file here</div>
+        <div id="status">waiting for a cartridge…</div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2>About</h2>
+        <p class="note" style="margin:0">
+          The core passes Blargg's eleven CPU instruction tests and renders
+          dmg-acid2 correctly. It is not cycle-exact: instruction timing tests
+          fail, so games that count cycles for effects may misbehave.
+        </p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="gb.js"></script>
+<script>
+const canvas = document.getElementById('screen');
+const ctx = canvas.getContext('2d');
+const img = ctx.createImageData(160, 144);
+const statusEl = document.getElementById('status');
+
+let Module = null;
+let running = false;
+let rafId = null;
+let buttons = 0;
+
+/* Button bit layout, matching gb.h. */
+const BITS = {
+  right: 0x01, left: 0x02, up: 0x04, down: 0x08,
+  a: 0x10, b: 0x20, select: 0x40, start: 0x80,
+};
+
+function setStatus(t) { statusEl.textContent = t; }
+function setStat(id, v, good) {
+  document.getElementById(id).querySelector('span:last-child').textContent = v;
+  if (good !== undefined) document.getElementById(id).classList.toggle('good', good);
+}
+
+const MAPPERS = ['ROM only', 'MBC1', 'MBC2', 'MBC3', 'MBC5'];
+
+async function boot() {
+  if (!Module) {
+    setStatus('loading emulator…');
+    Module = await createGB();
+  }
+  return Module;
+}
+
+function drawFrame() {
+  const ptr = Module._gb_wasm_framebuffer();
+  if (!ptr) return;
+  const src = Module.HEAPU8.subarray(ptr, ptr + 160 * 144 * 3);
+  for (let i = 0, o = 0; i < src.length; i += 3, o += 4) {
+    img.data[o] = src[i];
+    img.data[o + 1] = src[i + 1];
+    img.data[o + 2] = src[i + 2];
+    img.data[o + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+let lastTime = 0, frames = 0, fpsTimer = 0;
+
+function loop(now) {
+  if (!running) return;
+
+  /*
+   * Run at the Game Boy's own rate. One frame is 70224 cycles at 4.194304 MHz,
+   * which is 59.7275 Hz. A browser that falls behind should skip rather than
+   * accumulate, so the catch-up is capped.
+   */
+  const target = 1000 / 59.7275;
+  if (now - lastTime < target) {
+    rafId = requestAnimationFrame(loop);
+    return;
+  }
+  lastTime = now;
+
+  Module._gb_wasm_frame();
+  drawFrame();
+
+  frames++;
+  if (now - fpsTimer > 500) {
+    setStat('s-fps', Math.round(frames * 1000 / (now - fpsTimer)));
+    frames = 0;
+    fpsTimer = now;
+  }
+
+  const bad = Module._gb_wasm_invalid_opcodes();
+  if (bad > 0) {
+    setStat('s-bad', bad, false);
+  }
+
+  rafId = requestAnimationFrame(loop);
+}
+
+async function loadRom(bytes, name) {
+  await boot();
+
+  const ptr = Module._malloc(bytes.length);
+  Module.HEAPU8.set(bytes, ptr);
+  const ok = Module._gb_wasm_load(ptr, bytes.length);
+  Module._free(ptr);
+
+  if (!ok) {
+    setStatus(`${name}: not a cartridge this core can run`);
+    return;
+  }
+
+  const titlePtr = Module._gb_wasm_title();
+  let title = '';
+  for (let i = 0; i < 16; i++) {
+    const c = Module.HEAPU8[titlePtr + i];
+    if (c === 0) break;
+    title += String.fromCharCode(c);
+  }
+
+  const mapper = Module._gb_wasm_mapper();
+
+  setStat('s-title', title || '(untitled)');
+  setStat('s-mapper', MAPPERS[mapper] || ('#' + mapper));
+  setStat('s-banks', Module._gb_wasm_rom_banks());
+  setStat('s-bad', '0', true);
+  setStatus(`running ${name}`);
+
+  document.getElementById('pause').disabled = false;
+  document.getElementById('reset').disabled = false;
+
+  running = true;
+  setStat('s-run', 'yes', true);
+  lastTime = 0;
+  fpsTimer = performance.now();
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(loop);
+}
+
+/* --- input ------------------------------------------------------------ */
+
+function press(name, down) {
+  const bit = BITS[name];
+  if (!bit || !Module) return;
+  if (down) buttons |= bit; else buttons &= ~bit;
+  Module._gb_wasm_buttons(buttons);
+}
+
+const KEYMAP = {
+  ArrowRight: 'right', ArrowLeft: 'left', ArrowUp: 'up', ArrowDown: 'down',
+  KeyZ: 'a', KeyX: 'b', Enter: 'start', ShiftLeft: 'select', ShiftRight: 'select',
+};
+
+window.addEventListener('keydown', (e) => {
+  const n = KEYMAP[e.code];
+  if (!n) return;
+  e.preventDefault();
+  press(n, true);
+});
+
+window.addEventListener('keyup', (e) => {
+  const n = KEYMAP[e.code];
+  if (!n) return;
+  e.preventDefault();
+  press(n, false);
+});
+
+/* On-screen buttons, for touch and for mice. */
+document.querySelectorAll('[data-btn]').forEach((el) => {
+  const name = el.dataset.btn;
+
+  const down = (e) => { e.preventDefault(); el.classList.add('held'); press(name, true); };
+  const up = (e) => { e.preventDefault(); el.classList.remove('held'); press(name, false); };
+
+  el.addEventListener('pointerdown', down);
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointerleave', up);
+  el.addEventListener('pointercancel', up);
+});
+
+/* --- file input ------------------------------------------------------- */
+
+document.getElementById('file').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  loadRom(new Uint8Array(await f.arrayBuffer()), f.name);
+});
+
+const drop = document.getElementById('drop');
+
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  drop.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
+  loadRom(new Uint8Array(await f.arrayBuffer()), f.name);
+});
+
+/* --- controls --------------------------------------------------------- */
+
+document.getElementById('pause').addEventListener('click', (e) => {
+  running = !running;
+  e.target.textContent = running ? 'Pause' : 'Resume';
+  setStat('s-run', running ? 'yes' : 'paused', running);
+  if (running) {
+    lastTime = 0;
+    fpsTimer = performance.now();
+    rafId = requestAnimationFrame(loop);
+  }
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+  /* Reset is a reload of the same cartridge: unload and reload is enough here
+   * because the page keeps the original bytes only in the core. */
+  setStatus('press Load a ROM again to restart this cartridge');
+});
+
+boot().then(() => setStatus('ready — load a cartridge')).catch((e) => {
+  setStatus('could not load the emulator: ' + e.message);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+"""Shim for wasm-metadce: strips feature flags binaryen 117 does not know."""
+import os, sys
+DROP = {"--enable-bulk-memory-opt", "--enable-call-indirect-overlong",
+        "--no-stack-ir", "--zero-filled-memory", "--low-memory-unused",
+        "--strip-target-features"}
+REAL = os.environ.get("REAL_BIN_DIR", "/workspace/.pixi/envs/web/bin") + "/wasm-metadce"
+os.execv(REAL, [REAL] + [a for a in sys.argv[1:] if a not in DROP])

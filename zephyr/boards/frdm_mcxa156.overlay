@@ -1,0 +1,95 @@
+/*
+ * Board wiring for the Game Boy player on the FRDM-MCXA156.
+ *
+ * The panel is an SSD1306 on LPI2C2, and the five buttons are on the Arduino
+ * header's digital pins. Nothing here is emulator-specific: the application
+ * discovers the panel through zephyr,display and the buttons through the input
+ * subsystem, so the same firmware runs on any board with an equivalent overlay.
+ */
+
+/ {
+	chosen {
+		zephyr,display = &ssd1306_oled;
+	};
+
+	buttons {
+		compatible = "gpio-keys";
+
+		btn_up: btn_up {
+			gpios = <&arduino_header 2 GPIO_ACTIVE_LOW>;
+			zephyr,code = <INPUT_KEY_UP>;
+		};
+		btn_down: btn_down {
+			gpios = <&arduino_header 3 GPIO_ACTIVE_LOW>;
+			zephyr,code = <INPUT_KEY_DOWN>;
+		};
+		btn_left: btn_left {
+			gpios = <&arduino_header 4 GPIO_ACTIVE_LOW>;
+			zephyr,code = <INPUT_KEY_LEFT>;
+		};
+		btn_right: btn_right {
+			gpios = <&arduino_header 5 GPIO_ACTIVE_LOW>;
+			zephyr,code = <INPUT_KEY_RIGHT>;
+		};
+		btn_a: btn_a {
+			gpios = <&arduino_header 6 GPIO_ACTIVE_LOW>;
+			zephyr,code = <INPUT_KEY_ENTER>;
+		};
+		btn_b: btn_b {
+			gpios = <&arduino_header 7 GPIO_ACTIVE_LOW>;
+			zephyr,code = <INPUT_KEY_BACKSPACE>;
+		};
+		btn_start: btn_start {
+			gpios = <&arduino_header 8 GPIO_ACTIVE_LOW>;
+			zephyr,code = <INPUT_KEY_SPACE>;
+		};
+		btn_select: btn_select {
+			gpios = <&arduino_header 9 GPIO_ACTIVE_LOW>;
+			zephyr,code = <INPUT_KEY_ESC>;
+		};
+	};
+};
+
+/*
+ * The FRDM-MCXA156 has no card slot, so one is declared on LPSPI0, which is
+ * brought out on the Arduino header. Without a disk node in the devicetree the
+ * FAT filesystem has no volumes at all (FF_VOLUMES resolves to zero and fatfs
+ * refuses to compile), so this is required, not optional.
+ */
+&lpspi0 {
+	status = "okay";
+	cs-gpios = <&arduino_header 0 GPIO_ACTIVE_LOW>;
+
+	sdhc0: sdhc@0 {
+		compatible = "zephyr,sdhc-spi-slot";
+		reg = <0>;
+		spi-max-frequency = <4000000>;
+		status = "okay";
+
+		/* The disk-name lives on the child node; fatfs derives its volume
+		 * table from every zephyr,sdmmc-disk in the tree. */
+		mmc0: mmc {
+			compatible = "zephyr,sdmmc-disk";
+			disk-name = "SD";
+			status = "okay";
+		};
+	};
+};
+
+&lpi2c2 {
+	status = "okay";
+
+	ssd1306_oled: ssd1306@3c {
+		compatible = "solomon,ssd1306";
+		reg = <0x3c>;
+		width = <128>;
+		height = <64>;
+		segment-offset = <0>;
+		page-offset = <0>;
+		display-offset = <0>;
+		multiplex-ratio = <63>;
+		segment-remap;
+		com-invdir;
+		prechargep = <0x22>;
+	};
+};

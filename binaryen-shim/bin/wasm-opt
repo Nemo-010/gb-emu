@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+"""wasm-opt shim for binaryen 117 against emscripten 4.0.9.
+
+emcc passes flags this binaryen predates, and dies with "Unknown option" that
+points at the optimiser rather than at the version mismatch. Each flag below
+names a feature or pass that either the other flags on the same command line
+already imply, or that only affects output size, so dropping them is safe.
+"""
+import os
+import sys
+
+DROP = {
+    "--enable-bulk-memory-opt",
+    "--enable-call-indirect-overlong",
+    "--no-stack-ir",
+    "--zero-filled-memory",
+    "--low-memory-unused",
+    "--strip-target-features",
+}
+
+REAL = os.environ.get("REAL_WASM_OPT", "/workspace/.pixi/envs/web/bin/wasm-opt")
+args = [a for a in sys.argv[1:] if a not in DROP]
+os.execv(REAL, [REAL] + args)

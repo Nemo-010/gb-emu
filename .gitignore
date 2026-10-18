@@ -1,0 +1,13 @@
+# External test ROMs: fetched, not redistributed.
+roms/individual/
+roms/dmg-acid2.gb
+roms/cpu_instrs.gb
+roms/instr_timing.gb
+roms/mem_timing.gb
+roms/halt_bug.gb
+
+# Build output
+test/runner
+test/shot
+roms/demo/*.o
+roms/t_*.gb
