@@ -62,6 +62,14 @@ async function main() {
   check('no unrecognised opcodes', module._gb_wasm_invalid_opcodes() === 0,
         String(module._gb_wasm_invalid_opcodes()));
 
+  // Build the native renderer if it is not there, so this test stands alone.
+  const shot = path.join(ROOT, 'test', 'shot');
+  if (!fs.existsSync(shot)) {
+    execFileSync('cc', ['-std=c11', '-O2', '-Isrc', '-o', 'test/shot',
+                        'test/shot.c', 'src/gb_cpu.c', 'src/gb_mbc.c',
+                        'src/gb_ppu.c', 'src/gb.c'], { cwd: ROOT });
+  }
+
   // Now the same cartridge through the native build.
   const nativeOut = path.join(require('os').tmpdir(), 'gb-native.rgb');
   execFileSync(path.join(ROOT, 'test', 'shot'),
