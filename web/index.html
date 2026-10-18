@@ -139,11 +139,11 @@
     <div>
       <div class="card">
         <h2>Cartridge</h2>
-        <div class="stat"><span>Title</span><span id="s-title">—</span></div>
-        <div class="stat"><span>Mapper</span><span id="s-mapper">—</span></div>
-        <div class="stat"><span>ROM banks</span><span id="s-banks">—</span></div>
+        <div class="stat" id="s-title"><span>Title</span><span>—</span></div>
+        <div class="stat" id="s-mapper"><span>Mapper</span><span>—</span></div>
+        <div class="stat" id="s-banks"><span>ROM banks</span><span>—</span></div>
         <div class="stat" id="s-run"><span>Running</span><span>no</span></div>
-        <div class="stat"><span>FPS</span><span id="s-fps">—</span></div>
+        <div class="stat" id="s-fps"><span>FPS</span><span>—</span></div>
         <div class="stat good" id="s-bad"><span>Bad opcodes</span><span>0</span></div>
 
         <label class="primary" style="display:block;text-align:center;padding:9px;border-radius:6px;cursor:pointer">
@@ -188,9 +188,21 @@ const BITS = {
 };
 
 function setStatus(t) { statusEl.textContent = t; }
+
+/*
+ * Writes a value into a stat row. The row carries the id and the value lives in
+ * its last span; an id placed directly on the span used to make this throw and
+ * take the whole load with it, so both layouts are accepted now.
+ */
 function setStat(id, v, good) {
-  document.getElementById(id).querySelector('span:last-child').textContent = v;
-  if (good !== undefined) document.getElementById(id).classList.toggle('good', good);
+  const row = document.getElementById(id);
+  if (!row) {
+    console.warn('setStat: no element with id', id);
+    return;
+  }
+  const value = row.querySelector('span:last-child') || row;
+  value.textContent = v;
+  if (good !== undefined) row.classList.toggle('good', good);
 }
 
 const MAPPERS = ['ROM only', 'MBC1', 'MBC2', 'MBC3', 'MBC5'];

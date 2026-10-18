@@ -38,6 +38,14 @@ jobs:
       - name: Check the demo cartridge runs and responds to input
         run: node test/demo.js
 
+      - name: Install a browser for the page test
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Drive the page in a real browser
+        run: node test/page.js
+
   deploy:
     needs: test
     if: github.ref == 'refs/heads/master'

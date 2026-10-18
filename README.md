@@ -132,7 +132,15 @@ rgbfix -v -p 0xFF -m 0x00 -r 0x00 -C ../../roms/demo.gb
 ```sh
 ./test/smoke.sh      # the CPU and picture suites
 node test/wasm.js    # wasm output must equal native output, byte for byte
+node test/demo.js    # the self-authored cartridge boots and takes input
+node test/page.js    # the page itself, in a real browser
 ```
+
+`test/page.js` needs `npm install playwright` and drives the page the way a
+person does: it loads a cartridge through the file input, reads the stats, checks
+the canvas has been painted, and presses a key. It exists because the page once
+threw on the first stat it updated and nothing noticed — the emulator was fine,
+the page was broken, and only a browser could tell the difference.
 
 ## A note on ROMs
 

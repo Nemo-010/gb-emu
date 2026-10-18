@@ -11,3 +11,7 @@ test/runner
 test/shot
 roms/demo/*.o
 roms/t_*.gb
+
+# Playwright installed for the page test
+node_modules/
+package-lock.json
